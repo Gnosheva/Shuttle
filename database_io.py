@@ -1,4 +1,5 @@
 from cassandra.cluster import Cluster
+import logging
 
 
 class DatabaseConnector:
@@ -8,10 +9,11 @@ class DatabaseConnector:
             self.cluster = Cluster()
             self.session = self.cluster.connect()
         except Exception:
-            print('No connection')
+            logging.info('No connection')
 
     def define_data(self):
-        self.session.execute("CREATE KEYSPACE if not exists keyspace_surveillance_system WITH replication = {'class':'SimpleStrategy', 'replication_factor':1} ")
+        self.session.execute(
+            "CREATE KEYSPACE if not exists keyspace_surveillance_system WITH replication = {'class':'SimpleStrategy', 'replication_factor':1} ")
         self.session.execute("USE keyspace_surveillance_system")
         self.session.execute("drop table if exists transaction")
         self.session.execute("drop table if exists price")
@@ -22,12 +24,12 @@ class DatabaseConnector:
                 ExecutionEntityName text,
                 InstrumentName text,
                 InstrumentClassification text,
-                Quantity int,
-                Price float,
+                Quantity text,
+                Price text,
                 Currency text,
                 Datestamp text,
-                NetAmount float,
-                PRIMARY KEY ( (ExecutionEntityName , InstrumentName, Currency), Price, Datestamp )
+                NetAmount text,
+                PRIMARY KEY (ExecutionEntityName, TransactionID)
             )""")
         self.session.execute(
             """
@@ -35,29 +37,25 @@ class DatabaseConnector:
             InstrumentName text,
             Datestamp text,
             Currency text,
-            AVGPrice float,
-            NetAmountPerDay float,
-            PRIMARY KEY ((InstrumentName, Currency, Datestamp), AVGPrice)
+            AVGPrice text,
+            NetAmountPerDay text,
+            PRIMARY KEY (Currency, InstrumentName)
             )""")
 
     def __insert_transaction_record(self, record):
-            self.session.execute(
+        self.session.execute(
             """
             INSERT INTO transaction (TransactionID, ExecutionEntityName, InstrumentName, InstrumentClassification,
                                      Quantity, Price, Currency, Datestamp, NetAmount)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """,
-            (record[0], record[1], record[2], record[3], int(record[4]), float(record[5]), record[6], record[7], float(record[8]))
-        )
+            """, (*record,))
 
     def __insert_price_record(self, record):
         self.session.execute(
             """
             INSERT INTO price (InstrumentName, Datestamp, Currency, AVGPrice, NetAmountPerDay)
             VALUES (%s, %s, %s, %s, %s)
-            """,
-            (record[0], record[1], record[2], float(record[3]), float(record[4]))
-        )
+            """, (*record,))
 
     def add_transaction(self, transaction_list):
         for record in transaction_list:
@@ -67,10 +65,9 @@ class DatabaseConnector:
         for record in price_list:
             self.__insert_price_record(record)
 
-    def select_from_transaction(self):
-        res = self.session.execute("""SELECT * FROM transaction""")
-        return [row for row in res]
-
+    # def select_from_transaction(self):
+    #     res = self.session.execute("""SELECT * FROM transaction""")
+    #     return [row for row in res]
 
     def shutdown(self):
         self.cluster.shutdown()

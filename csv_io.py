@@ -15,6 +15,3 @@ class CsvReaderWriter:
 
     def write(self):
         pass
-
-    # def get_data_from_db(self):
-    #     return self.db_connection.session.execute("""SELECT * FROM transaction""")
